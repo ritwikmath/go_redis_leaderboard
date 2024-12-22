@@ -55,23 +55,14 @@ func leaderboardSSEHandler(w http.ResponseWriter, r *http.Request) {
 		w.(http.Flusher).Flush()
 	}
 
-	// fmt.Print(leaderboard)
-
 	var frontendData string = "data:["
 	for _, result := range leaderboard {
 		output := fmt.Sprintf(`{"name":"%v","score":%v},`, result.Member, result.Score)
-		// fmt.Printf(output)
 		frontendData += output
 	}
 	frontendData = strings.TrimSuffix(frontendData, ",")
 	frontendData += "]\n\n"
 
-	// for _, value := range leaderboard {
-	// 	fmt.Print(value)
-	// 	fmt.Fprint(w, value)
-	// 	w.(http.Flusher).Flush()
-	// }
-	// leaderboardJson, _ := json.Marshal(frontendData)
 	fmt.Fprint(w, frontendData)
 	w.(http.Flusher).Flush()
 }
