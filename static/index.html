@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+	<html>
+	<head>
+		<title>Leaderboard</title>
+	</head>
+	<body>
+		<h1>Leaderboard</h1>
+		<ul id="leaderboard"></ul>
+		<script>
+            console.log("Hello")
+            const eventSource = new EventSource("/leaderboard/sse");
+            const list = document.getElementById("leaderboard");
+            eventSource.onmessage = (e) => {
+				const data = JSON.parse(event.data);
+				list.innerHTML = "";
+				data.forEach((entry, index) => {
+					const li = document.createElement("li");
+					li.textContent = `${index + 1}. ${entry.name} - ${entry.score}`;
+					list.appendChild(li);
+				});
+			};
+		</script>
+	</body>
+	</html>
