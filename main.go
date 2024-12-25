@@ -10,9 +10,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var redis_client *redis.Client
+var (
+	redis_client *redis.Client
 
-var ctx = context.Background()
+	ctx = context.Background()
+
+	ch = make(chan bool)
+)
 
 func initializeRedisConnection() {
 	redis_client = redis.NewClient(&redis.Options{
@@ -36,7 +40,7 @@ func updateScore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	redis_client.ZAdd(ctx, "leaderboard", redis.Z{Score: req.Score, Member: req.Name})
-
+	ch <- true
 	fmt.Fprint(w, "Done")
 }
 
@@ -46,25 +50,30 @@ func leaderboardSSEHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	leaderboard, err := redis_client.ZRevRangeByScoreWithScores(ctx, "leaderboard", &redis.ZRangeBy{
-		Min: "-inf",
-		Max: "+inf",
-	}).Result()
-	if err != nil {
-		fmt.Fprint(w, "Failed to get score")
-		w.(http.Flusher).Flush()
-	}
+	for {
+		loaded := <-ch
+		if loaded {
+			leaderboard, err := redis_client.ZRevRangeByScoreWithScores(ctx, "leaderboard", &redis.ZRangeBy{
+				Min: "-inf",
+				Max: "+inf",
+			}).Result()
+			if err != nil {
+				fmt.Fprint(w, "Failed to get score")
+				w.(http.Flusher).Flush()
+			}
 
-	var frontendData string = "data:["
-	for _, result := range leaderboard {
-		output := fmt.Sprintf(`{"name":"%v","score":%v},`, result.Member, result.Score)
-		frontendData += output
-	}
-	frontendData = strings.TrimSuffix(frontendData, ",")
-	frontendData += "]\n\n"
+			var frontendData string = "data:["
+			for _, result := range leaderboard {
+				output := fmt.Sprintf(`{"name":"%v","score":%v},`, result.Member, result.Score)
+				frontendData += output
+			}
+			frontendData = strings.TrimSuffix(frontendData, ",")
+			frontendData += "]\n\n"
 
-	fmt.Fprint(w, frontendData)
-	w.(http.Flusher).Flush()
+			fmt.Fprint(w, frontendData)
+			w.(http.Flusher).Flush()
+		}
+	}
 }
 
 func main() {
@@ -76,5 +85,5 @@ func main() {
 	http.HandleFunc("/update-score", updateScore)
 	http.HandleFunc("/leaderboard/sse", leaderboardSSEHandler)
 
-	http.ListenAndServe(":8088", nil)
+	http.ListenAndServe("127.0.0.1:8088", nil)
 }
