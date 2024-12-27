@@ -51,8 +51,9 @@ func leaderboardSSEHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	for {
-		loaded := <-ch
-		if loaded {
+		select {
+		case <-ch:
+			fmt.Println("Updated")
 			leaderboard, err := redis_client.ZRevRangeByScoreWithScores(ctx, "leaderboard", &redis.ZRangeBy{
 				Min: "-inf",
 				Max: "+inf",
